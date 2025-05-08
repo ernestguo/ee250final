@@ -57,10 +57,12 @@ def RMC_Read():
                 nmea_latitude = buff[2]              
                 nmea_longitude = buff[4]
                 date = buff[8]
-                lat = (float)(nmea_latitude)
-                lat = convert_to_degrees(lat)
-                longi = (float)(nmea_longitude)
-                longi = convert_to_degrees(longi)                
+                lat = (nmea_latitude)
+                #lat = (float)(nmea_latitude)
+                #lat = convert_to_degrees(lat)
+                longi = (nmea_longitude)
+                #longi = (float)(nmea_longitude)
+                #longi = convert_to_degrees(longi)                
                 return lat,longi,nmea_time,speed_over_ground,date
 
 
