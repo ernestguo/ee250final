@@ -57,7 +57,7 @@ if __name__ == '__main__':
     # Use non-blocking loop to check for incoming messages
     client.loop_start()
 
-    while (int(time.time()) - curr_t < 20):
+    while (int(time.time()) - curr_t < 60):
         pass
 
     if currid != 0:
