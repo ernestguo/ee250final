@@ -13,7 +13,7 @@ try:
             print("Date = ",a[4])
             print("speed over ground = ",a[3])
             print("\n")
-        
+        '''
         y = gps_lib.GSV_Read() # GNSS satellites in view
         if y is not None:
             a = list(y)
@@ -32,8 +32,7 @@ try:
             print("Satellite Positioning = ",a[3])
             print("GPS Quality indicator = ",a[4])
             print("\n")
-
-            
+        '''
 except KeyboardInterrupt:
     sys.exit(0)
 
