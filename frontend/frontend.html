@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Qtr Mile Timer (MQTT)</title>
+  <style>
+    body { display:flex; flex-direction:column; align-items:center; justify-content:center;
+           height:100vh; margin:0; font-family:Arial,sans-serif; background:#f0f0f0 }
+    #timer { font-size:4rem; margin-bottom:.5rem }
+    #speed { font-size:2rem; margin-bottom:1.5rem }
+    .btn { padding:.75rem 1.5rem; margin:0 .5rem; font-size:1.25rem;
+           border:none; border-radius:8px; cursor:pointer;
+           box-shadow:0 2px 5px rgba(0,0,0,.2); transition:background .3s }
+    #startBtn { background:#4CAF50; color:#fff }
+    #startBtn:hover:not(:disabled) { background:#45A049 }
+    #stopBtn  { background:#f44336; color:#fff }
+    #stopBtn:hover:not(:disabled)  { background:#e53935 }
+    .btn:disabled { opacity:.5; cursor:not-allowed }
+  </style>
+</head>
+<body>
+  <div id="timer">00:00.000</div>
+  <div id="speed">0.00 mph</div>
+  <div>
+    <button id="startBtn" class="btn">Start</button>
+    <button id="stopBtn"  class="btn" disabled>Stop</button>
+  </div>
+
+  <!-- Paho MQTT over WebSocket -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/paho-mqtt/1.1.0/mqttws31.min.js"></script>
+  <script>
+    const TIMER = document.getElementById('timer');
+    const SPEED = document.getElementById('speed');
+    const START = document.getElementById('startBtn');
+    const STOP  = document.getElementById('stopBtn');
+
+    let myId = null;
+    let intervalId = null;
+    let timeoutId = null;
+
+    function pad(n,l=2){ return n.toString().padStart(l,'0'); }
+    function fmt(ms){
+      const m = Math.floor(ms/60000);
+      const s = Math.floor(ms/1000)%60;
+      const msr = ms%1000;
+      return `${pad(m)}:${pad(s)}.${pad(msr,3)}`;
+    }
+
+    function startLocal(){
+      myId = Math.floor(Date.now()/1000);
+      let elapsed = 0;
+      TIMER.textContent = fmt(0);
+      SPEED.textContent = '0.00 mph';
+
+      intervalId = setInterval(()=>{
+        elapsed = (Date.now()/1000 - myId)*1000;
+        TIMER.textContent = fmt(elapsed);
+      },100);
+
+      // Set 60s timeout
+      timeoutId = setTimeout(()=>{
+        clearInterval(intervalId);
+        alert('Timeout: no end signal within 60s');
+        mqttClient.publish('hanwegjasedill/timeout', myId.toString());
+        START.disabled = false;
+        STOP.disabled  = true;
+      },60000);
+
+      START.disabled = true;
+      STOP.disabled  = false;
+      // Publish start id
+      mqttClient.publish('hanwegjasedill/start', myId.toString());
+    }
+
+    function stopLocal(id, qtime){
+      clearInterval(intervalId);
+      clearTimeout(timeoutId);
+      if (id===myId && typeof qtime==='number'){
+        TIMER.textContent = fmt(qtime*1000);
+        // compute speed
+        const hours = qtime/3600;
+        const mph = 0.25/hours;
+        SPEED.textContent = `${mph.toFixed(2)} mph`;
+      }
+      START.disabled = false;
+      STOP.disabled  = true;
+    }
+
+    // MQTT setup
+    const mqttClient = new Paho.MQTT.Client('YOUR_PI_IP', 9001, 'client'+Date.now());
+    mqttClient.onMessageArrived = msg => {
+      const [idStr, tStr] = msg.payloadString.split(' ');
+      const id = Number(idStr), qtime = Number(tStr);
+      if (id===myId) stopLocal(id, qtime);
+    };
+    mqttClient.connect({ onSuccess: ()=>mqttClient.subscribe('hanwegjasedill/end') });
+
+    START.onclick = startLocal;
+    STOP.onclick  = ()=>stopLocal();
+  </script>
+</body>
+</html>
