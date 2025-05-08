@@ -2,8 +2,8 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>Qtr Mile Timer (MQTT)</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Quarter Mile Timer</title>
   <style>
     body { display:flex; flex-direction:column; align-items:center; justify-content:center;
            height:100vh; margin:0; font-family:Arial,sans-serif; background:#f0f0f0 }
@@ -27,7 +27,7 @@
     <button id="stopBtn"  class="btn" disabled>Stop</button>
   </div>
 
-  <!-- Paho MQTT over WebSocket -->
+  <!-- Paho MQTT JS -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/paho-mqtt/1.1.0/mqttws31.min.js"></script>
   <script>
     const TIMER = document.getElementById('timer');
@@ -35,21 +35,17 @@
     const START = document.getElementById('startBtn');
     const STOP  = document.getElementById('stopBtn');
 
-    let myId = null;
-    let intervalId = null;
-    let timeoutId = null;
+    let myId=0, intervalId, timeoutId;
 
-    function pad(n,l=2){ return n.toString().padStart(l,'0'); }
+    function pad(n,l=2){return n.toString().padStart(l,'0');}
     function fmt(ms){
-      const m = Math.floor(ms/60000);
-      const s = Math.floor(ms/1000)%60;
-      const msr = ms%1000;
-      return `${pad(m)}:${pad(s)}.${pad(msr,3)}`;
+      const m=Math.floor(ms/60000),s=Math.floor(ms/1000)%60,r=ms%1000;
+      return `${pad(m)}:${pad(s)}.${pad(r,3)}`;
     }
 
-    function startLocal(){
+    async function startLocal(){
       myId = Math.floor(Date.now()/1000);
-      let elapsed = 0;
+      let elapsed=0;
       TIMER.textContent = fmt(0);
       SPEED.textContent = '0.00 mph';
 
@@ -58,43 +54,43 @@
         TIMER.textContent = fmt(elapsed);
       },100);
 
-      // Set 60s timeout
-      timeoutId = setTimeout(()=>{
+      // call Flask start servlet
+      await fetch('http://YOUR_PI_IP:5000/start',{
+        method:'POST',headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({id:myId})
+      });
+
+      timeoutId = setTimeout(async ()=>{
         clearInterval(intervalId);
-        alert('Timeout: no end signal within 60s');
-        mqttClient.publish('hanwegjasedill/timeout', myId.toString());
-        START.disabled = false;
-        STOP.disabled  = true;
+        alert('Timeout: no end within 60s');
+        await fetch('http://YOUR_PI_IP:5000/timeout',{
+          method:'POST',headers:{'Content-Type':'application/json'},
+          body: JSON.stringify({id:myId})
+        });
+        START.disabled=false;STOP.disabled=true;
       },60000);
 
-      START.disabled = true;
-      STOP.disabled  = false;
-      // Publish start id
-      mqttClient.publish('hanwegjasedill/start', myId.toString());
+      START.disabled=true;STOP.disabled=false;
     }
 
-    function stopLocal(id, qtime){
+    function stopLocal(id,qtime){
       clearInterval(intervalId);
       clearTimeout(timeoutId);
-      if (id===myId && typeof qtime==='number'){
+      if(id===myId && typeof qtime==='number'){
         TIMER.textContent = fmt(qtime*1000);
-        // compute speed
-        const hours = qtime/3600;
-        const mph = 0.25/hours;
+        const h=qtime/3600, mph=0.25/h;
         SPEED.textContent = `${mph.toFixed(2)} mph`;
       }
-      START.disabled = false;
-      STOP.disabled  = true;
+      START.disabled=false;STOP.disabled=true;
     }
 
-    // MQTT setup
-    const mqttClient = new Paho.MQTT.Client('YOUR_PI_IP', 9001, 'client'+Date.now());
-    mqttClient.onMessageArrived = msg => {
-      const [idStr, tStr] = msg.payloadString.split(' ');
-      const id = Number(idStr), qtime = Number(tStr);
-      if (id===myId) stopLocal(id, qtime);
+    // subscribe to END via MQTT ws
+    const client = new Paho.MQTT.Client('YOUR_PI_IP',9001,'c'+Date.now());
+    client.onMessageArrived = msg=>{
+      const [i,t]=msg.payloadString.split(' ');
+      stopLocal(Number(i),Number(t));
     };
-    mqttClient.connect({ onSuccess: ()=>mqttClient.subscribe('hanwegjasedill/end') });
+    client.connect({onSuccess:()=>client.subscribe('hanwengjasedill/end')});
 
     START.onclick = startLocal;
     STOP.onclick  = ()=>stopLocal();
