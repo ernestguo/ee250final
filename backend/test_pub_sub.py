@@ -68,7 +68,7 @@ def run_timing(id):
     while (not e.is_set()) and (dist < 0.25):
         e.wait(0.02)
         last_time = time.time()
-        dist += 0.0007 # Simulate distance traveled
+        dist += 0.0005 # Simulate distance traveled
         if last_time - start_time > 60: # Auto timeout
             print("Server timeout, ending run")
             return
