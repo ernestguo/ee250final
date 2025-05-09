@@ -27,8 +27,8 @@
     <button id="stopBtn"  class="btn" disabled>Stop</button>
   </div>
 
-  <!-- Paho MQTT JS -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/paho-mqtt/1.1.0/mqttws31.min.js"></script>
+  <!-- Paho MQTT JS --><!-- Load the Eclipse Paho MQTT browser client via CDNJS -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/paho-mqtt/1.1.0/paho-mqtt.js"></script>
   <script>
     const TIMER = document.getElementById('timer');
     const SPEED = document.getElementById('speed');
@@ -50,47 +50,48 @@
       SPEED.textContent = '0.00 mph';
 
       intervalId = setInterval(()=>{
-        elapsed = (Date.now()/1000 - myId)*1000;
+        elapsed = (Date.now()/1000 - myId).toFixed(3);
         TIMER.textContent = fmt(elapsed);
       },100);
 
-      // call Flask start servlet
-      await fetch('http://YOUR_PI_IP:5000/start',{
-        method:'POST',headers:{'Content-Type':'application/json'},
-        body: JSON.stringify({id:myId})
+      START.disabled=true;STOP.disabled=false;
+
+      const pub_client = new Paho.Client('broker.hivemq.com',8000,'/mqtt','cpub'+Date.now());
+      pub_client.connect({
+        onSuccess:()=> {
+          pub_client.publish('hanwengjasedill/start', myId.toString());
+          // Output to js console
+          console.log('Start time published:', myId);
+        }
       });
 
       timeoutId = setTimeout(async ()=>{
         clearInterval(intervalId);
         alert('Timeout: no end within 60s');
-        await fetch('http://YOUR_PI_IP:5000/timeout',{
-          method:'POST',headers:{'Content-Type':'application/json'},
-          body: JSON.stringify({id:myId})
-        });
+        pub_client.publish('hanwengjasedill/timeout', myId.toString())
         START.disabled=false;STOP.disabled=true;
       },60000);
 
-      START.disabled=true;STOP.disabled=false;
     }
 
-    function stopLocal(id,qtime){
+    function stopLocal(id, qtime){
       clearInterval(intervalId);
       clearTimeout(timeoutId);
       if(id===myId && typeof qtime==='number'){
-        TIMER.textContent = fmt(qtime*1000);
+        TIMER.textContent = fmt(qtime);
         const h=qtime/3600, mph=0.25/h;
         SPEED.textContent = `${mph.toFixed(2)} mph`;
       }
       START.disabled=false;STOP.disabled=true;
     }
 
-    // subscribe to END via MQTT ws
-    const client = new Paho.MQTT.Client('YOUR_PI_IP',9001,'c'+Date.now());
-    client.onMessageArrived = msg=>{
-      const [i,t]=msg.payloadString.split(' ');
+    const sub_client = new Paho.Client('broker.hivemq.com',8000,'/mqtt','csub'+Date.now());
+    sub_client.onMessageArrived = msg=>{
+      const[i,t]=msg.payloadString.split(' ');
       stopLocal(Number(i),Number(t));
+      console.log('End time received:', i, t);
     };
-    client.connect({onSuccess:()=>client.subscribe('hanwengjasedill/end')});
+    sub_client.connect({onSuccess:()=>sub_client.subscribe('hanwengjasedill/end')});
 
     START.onclick = startLocal;
     STOP.onclick  = ()=>stopLocal();
