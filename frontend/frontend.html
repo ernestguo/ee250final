@@ -91,6 +91,8 @@
       clearInterval(intervalId);
       clearTimeout(timeoutId);
 
+      sub_client.publish('hanwengjasedill/timeout', myId.toString());
+
       // only update if this end matches the current run
       if (id === myId && typeof qtime === 'number') {
         TIMER.textContent = fmt(qtime * 1000);

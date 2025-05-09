@@ -88,6 +88,8 @@ def run_timing(id):
         if x is not None:
             data = list(x)
             dist += calc_dist(data[0], data[1], last_lat, last_long)
+            last_lat = data[0]
+            last_long = data[1]
         if last_time - start_time > 60: # Auto timeout
             print("Server timeout, ending run")
             return
