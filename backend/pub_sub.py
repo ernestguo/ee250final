@@ -78,9 +78,11 @@ def run_timing(id):
     x = gps_lib.RMC_Read()
     if x is not None:
         data = list(x)
-        if data[0] is not None:
+        try:
             last_lat = float(data[0])
             last_long = float(data[1])
+        except:
+            pass
 
     while (not e.is_set()) and (dist < 0.25):
         e.wait(0.02)
@@ -88,12 +90,14 @@ def run_timing(id):
         x = gps_lib.RMC_Read()
         if x is not None:
             data = list(x)
-            if data[0] is not None:
+            try:
                 dist += calc_dist(float(data[0]), float(data[1]), last_lat, last_long)
                 last_lat = float(data[0])
                 last_long = float(data[1])
                 print(f"Distance: {dist} miles")
                 print(f"Lat: {last_lat} Long: {last_long}")
+            except:
+                pass
         if last_time - start_time > 60: # Auto timeout
             print("Server timeout, ending run")
             return
