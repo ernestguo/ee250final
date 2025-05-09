@@ -20,7 +20,6 @@
   </style>
 </head>
 <body>
-  <!-- change initial display to include minutes: -->
   <div id="timer">00:00.000</div>
   <div id="speed">0.00 mph</div>
   <div>
@@ -28,16 +27,17 @@
     <button id="stopBtn"  class="btn" disabled>Stop</button>
   </div>
 
-  <!-- Paho MQTT JS -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/paho-mqtt/1.1.0/paho-mqtt.min.js"></script>
-
+  <!-- Load the Eclipse Paho MQTT browser client via CDNJS -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/paho-mqtt/1.1.0/paho-mqtt.js"></script>
   <script>
     const TIMER = document.getElementById('timer');
     const SPEED = document.getElementById('speed');
     const START = document.getElementById('startBtn');
     const STOP  = document.getElementById('stopBtn');
 
-    let startTime = 0, intervalId, timeoutId;
+    let myId = 0;
+    let startTime = 0;
+    let intervalId, timeoutId;
 
     function pad(n, l = 2) {
       return n.toString().padStart(l, '0');
@@ -51,14 +51,15 @@
     }
 
     async function startLocal() {
-      // 1) record the ms-precise start
+      // record both an ID and the millisecond‐precision start time
+      myId = Math.floor(Date.now() / 1000);
       startTime = Date.now();
 
-      // 2) reset display
+      // reset display
       TIMER.textContent = fmt(0);
       SPEED.textContent = '0.00 mph';
 
-      // 3) update every 50ms (for smoothness)
+      // update timer every 50ms for smoothness
       intervalId = setInterval(() => {
         const elapsed = Date.now() - startTime;
         TIMER.textContent = fmt(elapsed);
@@ -67,23 +68,51 @@
       START.disabled = true;
       STOP.disabled  = false;
 
-      // …your existing MQTT publish logic…
+      // publish the start event
+      const pub_client = new Paho.Client('broker.hivemq.com', 8000, '/mqtt', 'cpub' + Date.now());
+      pub_client.connect({
+        onSuccess: () => {
+          pub_client.publish('hanwengjasedill/start', myId.toString());
+          console.log('Start time published:', myId);
+        }
+      });
+
+      // set a 60s timeout
+      timeoutId = setTimeout(() => {
+        clearInterval(intervalId);
+        alert('Timeout: no end within 60s');
+        pub_client.publish('hanwengjasedill/timeout', myId.toString());
+        START.disabled = false;
+        STOP.disabled  = true;
+      }, 60000);
     }
 
     function stopLocal(id, qtime) {
       clearInterval(intervalId);
       clearTimeout(timeoutId);
-      if (id === Math.floor(startTime / 1000) && typeof qtime === 'number') {
-        TIMER.textContent = fmt(qtime);
-        const h   = qtime / 3600,
-              mph = 0.25 / h;
+
+      // only update if this end matches the current run
+      if (id === myId && typeof qtime === 'number') {
+        TIMER.textContent = fmt(qtime * 1000);
+        const h   = qtime / 3600;
+        const mph = 0.25 / h;
         SPEED.textContent = `${mph.toFixed(2)} mph`;
       }
+
       START.disabled = false;
       STOP.disabled  = true;
     }
 
-    // …your existing MQTT subscribe logic…
+    // subscribe for the stop event
+    const sub_client = new Paho.Client('broker.hivemq.com', 8000, '/mqtt', 'csub' + Date.now());
+    sub_client.onMessageArrived = msg => {
+      const [i, t] = msg.payloadString.split(' ');
+      stopLocal(Number(i), Number(t));
+      console.log('End time received:', i, t);
+    };
+    sub_client.connect({
+      onSuccess: () => sub_client.subscribe('hanwengjasedill/end')
+    });
 
     START.onclick = startLocal;
     STOP.onclick  = () => stopLocal();
