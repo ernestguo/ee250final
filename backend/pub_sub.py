@@ -89,7 +89,7 @@ def run_timing(id):
         if x is not None:
             data = list(x)
             if data[0] is not None:
-                dist += calc_dist(data[0], data[1], last_lat, last_long)
+                dist += calc_dist(float(data[0]), float(data[1]), last_lat, last_long)
                 last_lat = float(data[0])
                 last_long = float(data[1])
                 print(f"Distance: {dist} miles")
@@ -112,11 +112,7 @@ def calc_dist(lat, long, last_lat, last_long):
     # Haversine formula to calculate distance between two lat/long points
     # Radius of the Earth in miles
     R = 3958.8
-    lat1 = lat * (3.141592653589793 / 180.0)
-    lat2 = last_lat * (3.141592653589793 / 180.0)
     dlat = (lat - last_lat) * (3.141592653589793 / 180.0)
-    long1 = long * (3.141592653589793 / 180.0)
-    long2 = last_long * (3.141592653589793 / 180.0)
     dlong = (long - last_long) * (3.141592653589793 / 180.0)
     a = (pow((pow(dlat, 2) + pow((dlong), 2)), 0.5))
     c = 2 * (3.141592653589793 / 180.0) * a
