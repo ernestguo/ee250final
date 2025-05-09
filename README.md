@@ -11,3 +11,9 @@ Frontend Execute -
     - Open default browser and search: http://localhost:8000/frontend.html
 
 Backend Execute -
+    - Headless
+        - Create systemd service
+        - Executes /path/to/python3 /path/to/the/project/backend/timer.py
+        - Enable service
+    - Main terminal
+        - python3 /path/to/the/project/backend/timer.py
