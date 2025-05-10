@@ -3,6 +3,8 @@ Group Members:
 Joel Sedillo
 Ernest Guo
 
+Demo video: https://www.youtube.com/watch?v=uCm5rY9pBLs
+
 Compile/Execute program(s):
 Frontend Execute - 
     - Open terminal
